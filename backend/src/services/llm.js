@@ -525,9 +525,45 @@ ${levelSymbol} 历史意义：奠定AI研究基础，启发后续数十年发展
     try {
       console.log('🖼️ 开始生成PNG图片...');
       
-      // 启动浏览器 - 兼容新旧版本
-      browser = await puppeteer.launch({
-        headless: true, // 使用 'true' 替代 'new' 以确保兼容性
+      // 启动浏览器 - 使用配置的Chromium路径
+      const { loadConfig } = require('../../configure-chromium');
+      const fs = require('fs');
+      
+      // 加载Chromium配置
+      const config = loadConfig();
+      let executablePath = null;
+      
+      if (config && config.executablePath) {
+        // 检查配置的路径是否仍然存在
+        if (fs.existsSync(config.executablePath)) {
+          executablePath = config.executablePath;
+          console.log(`🔍 使用配置的Chromium: ${executablePath}`);
+        } else {
+          console.log(`⚠️ 配置的Chromium路径不存在: ${config.executablePath}`);
+        }
+      }
+      
+      // 如果配置的路径不可用，自动检测
+      if (!executablePath) {
+        const chromiumPaths = [
+          '/snap/bin/chromium',           // Snap安装的Chromium
+          '/usr/bin/chromium-browser',    // Ubuntu/Debian
+          '/usr/bin/chromium',            // 其他Linux发行版
+          '/usr/bin/google-chrome',       // Google Chrome
+          '/usr/bin/google-chrome-stable' // Google Chrome稳定版
+        ];
+        
+        for (const chromiumPath of chromiumPaths) {
+          if (fs.existsSync(chromiumPath)) {
+            executablePath = chromiumPath;
+            console.log(`🔍 自动检测到Chromium: ${chromiumPath}`);
+            break;
+          }
+        }
+      }
+      
+      const launchOptions = {
+        headless: true,
         args: [
           '--no-sandbox', 
           '--disable-setuid-sandbox',
@@ -535,9 +571,21 @@ ${levelSymbol} 历史意义：奠定AI研究基础，启发后续数十年发展
           '--disable-gpu',
           '--no-first-run',
           '--no-zygote',
-          '--single-process'
+          '--single-process',
+          '--disable-web-security',
+          '--disable-features=VizDisplayCompositor'
         ]
-      });
+      };
+      
+      // 如果找到自定义Chromium路径，则使用它
+      if (executablePath) {
+        launchOptions.executablePath = executablePath;
+        console.log(`🚀 启动Chromium: ${executablePath}`);
+      } else {
+        console.log('⚠️ 未找到自定义Chromium，使用Puppeteer默认浏览器');
+      }
+      
+      browser = await puppeteer.launch(launchOptions);
       
       const page = await browser.newPage();
       

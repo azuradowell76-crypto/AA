@@ -851,7 +851,7 @@ const MindmapGenerator = () => {
               </button>
             </div>
           </div>
-          
+
           
           <div className="border border-gray-300 rounded-lg p-4" style={{ minHeight: '400px', maxHeight: '600px', overflow: 'auto' }}>
             {mindmapResult ? (
@@ -868,7 +868,7 @@ const MindmapGenerator = () => {
           </div>
         </div>
       </div>
-
+会
       {/* AI问答弹窗 */}
       {showAIModal && (
         <div 
