@@ -1,10 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN" translate="no">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
+    <!-- 防止浏览器翻译扩展干扰 -->
+    <meta name="google" content="notranslate" />
+    <meta name="translate" content="no" />
     <meta
       name="description"
       content="Web site created using create-react-app"
@@ -36,12 +39,39 @@
         fill: #fff;
         stroke-width: 1.5px;
       }
+      
+      /* 防止翻译扩展干扰 */
+      * {
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+      }
+      
+      /* 隐藏翻译扩展添加的元素 */
+      .notranslate,
+      .immersive-translate-target-translation-theme-none,
+      .immersive-translate-target-translation-inline-wrapper {
+        display: none !important;
+      }
+      
+      /* 隐藏翻译扩展添加的font标签 */
+      font.notranslate,
+      font.immersive-translate-target-translation-theme-none {
+        display: none !important;
+      }
+      
+      /* 确保按钮文本不被翻译扩展覆盖 */
+      button[translate="no"] {
+        position: relative;
+        z-index: 1;
+      }
     </style>
     <title>AI思维导图</title>
   </head>
-  <body>
+  <body translate="no">
     <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <div id="root" translate="no"></div>
     <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.

@@ -120,6 +120,123 @@ router.post('/chat', async (req, res) => {
   }
 });
 
+// 新增：继续回答接口
+router.post('/continue-answer', async (req, res) => {
+  try {
+    const { 
+      previousAnswer, 
+      nodeText, 
+      nodeLevel, 
+      provider = 'deepseek', 
+      model = 'deepseek-chat',
+      conversationHistory = [] 
+    } = req.body;
+
+    if (!previousAnswer || !nodeText) {
+      return res.status(400).json({ error: '请提供之前的回答和节点信息' });
+    }
+
+    console.log(`🔄 收到继续回答请求: 节点 "${nodeText}" (层级: ${nodeLevel})`);
+
+    // 检查指定提供商的服务状态
+    const isHealthy = await llmService.isHealthy(provider);
+    if (!isHealthy) {
+      return res.status(503).json({ 
+        error: `${provider} 服务不可用，请检查服务状态` 
+      });
+    }
+
+    // 生成继续回答
+    const continuedAnswer = await llmService.generateContinuedAnswer(
+      previousAnswer, 
+      nodeText, 
+      nodeLevel, 
+      provider, 
+      model,
+      conversationHistory
+    );
+
+    // 检查AI是否判断回答已经完整
+    const isComplete = continuedAnswer.includes('[COMPLETE]');
+    const cleanAnswer = isComplete ? continuedAnswer.replace('[COMPLETE]', '').trim() : continuedAnswer;
+
+    console.log('✅ 继续回答生成成功', { isComplete });
+
+    res.json({
+      success: true,
+      data: {
+        response: cleanAnswer,
+        isComplete: isComplete,
+        nodeText: nodeText,
+        nodeLevel: nodeLevel,
+        provider: provider,
+        model: model,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Continue answer error:', error);
+    res.status(500).json({ 
+      error: error.message || '继续回答时发生错误' 
+    });
+  }
+});
+
+// 新增：获取推荐问题
+router.post('/suggest-questions', async (req, res) => {
+  try {
+    const { 
+      nodeText, 
+      nodeLevel, 
+      provider = 'deepseek', 
+      model = 'deepseek-chat' 
+    } = req.body;
+
+    if (!nodeText) {
+      return res.status(400).json({ error: '请提供节点信息' });
+    }
+
+    console.log(`💡 收到推荐问题请求: 节点 "${nodeText}" (层级: ${nodeLevel})`);
+
+    // 检查指定提供商的服务状态
+    const isHealthy = await llmService.isHealthy(provider);
+    if (!isHealthy) {
+      return res.status(503).json({ 
+        error: `${provider} 服务不可用，请检查服务状态` 
+      });
+    }
+
+    // 生成推荐问题
+    const questions = await llmService.generateSuggestedQuestions(
+      nodeText, 
+      nodeLevel, 
+      provider, 
+      model
+    );
+
+    console.log('✅ 推荐问题生成成功');
+
+    res.json({
+      success: true,
+      data: {
+        questions: questions,
+        nodeText: nodeText,
+        nodeLevel: nodeLevel,
+        provider: provider,
+        model: model,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('Generate suggested questions error:', error);
+    res.status(500).json({ 
+      error: error.message || '生成推荐问题时发生错误' 
+    });
+  }
+});
+
 // 新增：将AI回答整理为子节点
 router.post('/organize-response', async (req, res) => {
   try {

@@ -20,6 +20,13 @@ const MindmapGenerator = () => {
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   
+  // 推荐问题相关状态
+  const [suggestedQuestions, setSuggestedQuestions] = useState([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  
+  // 继续回答相关状态
+  const [isContinuing, setIsContinuing] = useState(false);
+  
   // 节点添加相关状态
   const [isOrganizing, setIsOrganizing] = useState(false);
   
@@ -77,6 +84,17 @@ const MindmapGenerator = () => {
   useEffect(() => {
     fetchProviders();
   }, []);
+
+  // 自动清除成功提示
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => {
+        setSuccess('');
+      }, 3000); // 3秒后自动清除
+
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   const fetchProviders = async () => {
     try {
@@ -149,17 +167,20 @@ const MindmapGenerator = () => {
   };
 
   // 打开AI对话框
-  const openAIChat = (nodeText, nodeLevel) => {
+  const openAIChat = async (nodeText, nodeLevel) => {
     setCurrentNode(nodeText);
     setCurrentNodeLevel(nodeLevel);
     setChatMessages([
       {
         type: 'ai',
-        content: `您好！我是AI助手，很高兴为您解答关于"${nodeText}"的问题。您可以直接输入问题，或选择下方的推荐问题。`
+        content: `您好！我是AI助手，很高兴为您解答关于"${nodeText}"的问题。您可以直接输入问题，或者选择下方的推荐问题。`
       }
     ]);
     setChatInput('');
     setShowAIModal(true);
+    
+    // 自动获取推荐问题
+    await getSuggestedQuestions(nodeLevel, nodeText);
   };
 
   // 关闭AI对话框
@@ -168,78 +189,182 @@ const MindmapGenerator = () => {
     setChatMessages([]);
     setChatInput('');
     setIsOrganizing(false);
+    setSuggestedQuestions([]);
+    setIsLoadingSuggestions(false);
+    setIsContinuing(false);
   };
 
-  // 获取推荐问题 - 根据节点内容生成相关推荐问题
-  const getSuggestedQuestions = (level, nodeText) => {
-    // 如果没有节点文本，返回默认问题
+  // 获取推荐问题 - 通过AI API动态生成
+  const getSuggestedQuestions = async (level, nodeText) => {
     if (!nodeText || !nodeText.trim()) {
-      const defaultQuestions = {
-        1: [
-          '核心概念是什么？',
-          '主要应用领域有哪些？',
-          '发展历程如何？'
-        ],
-        2: [
-          '详细解释这个概念',
-          '有哪些典型案例？',
-          '优势和局限性是什么？'
-        ],
-        3: [
-          '具体实现原理是什么？',
-          '如何在实践中应用？',
-          '需要注意哪些要点？'
-        ],
-        4: [
-          '技术细节有哪些？',
-          '相关资源推荐',
-          '如何深入掌握？'
-        ]
-      };
-      return defaultQuestions[level] || defaultQuestions[3];
+      return [];
     }
 
-    // 根据节点级别和内容生成相关推荐问题
-    const questions = [];
+    setIsLoadingSuggestions(true);
     
-    if (level === 1) {
-      // 一级节点（主题节点）
-      questions.push(
-        `"${nodeText}"的核心概念和定义是什么？`,
-        `"${nodeText}"的主要应用领域和场景有哪些？`,
-        `"${nodeText}"的发展历程和重要里程碑是什么？`
-      );
-    } else if (level === 2) {
-      // 二级节点（主要分类）
-      questions.push(
-        `"${nodeText}"的详细解释和特点是什么？`,
-        `"${nodeText}"有哪些具体的案例或实例？`,
-        `"${nodeText}"的优势、局限性和挑战是什么？`
-      );
-    } else if (level === 3) {
-      // 三级节点（具体内容）
-      questions.push(
-        `"${nodeText}"的具体实现原理和机制是什么？`,
-        `"${nodeText}"如何在实践中应用和操作？`,
-        `"${nodeText}"需要注意哪些关键要点和注意事项？`
-      );
-    } else if (level === 4) {
-      // 四级节点（技术细节）
-      questions.push(
-        `"${nodeText}"的技术细节和具体参数有哪些？`,
-        `"${nodeText}"相关的学习资源和参考资料推荐？`,
-        `如何深入掌握"${nodeText}"的相关知识？`
-      );
-    } else {
-      // 其他级别
-      questions.push(
-        `"${nodeText}"的详细说明是什么？`,
-        `"${nodeText}"有哪些实际应用？`,
-        `关于"${nodeText}"还有什么重要信息？`
-      );
+    try {
+      const response = await axios.post('http://localhost:3001/api/mindmap/suggest-questions', {
+        nodeText: nodeText,
+        nodeLevel: level,
+        provider: selectedProvider,
+        model: selectedModel
+      });
+
+      if (response.data.success) {
+        const questions = response.data.data.questions || [];
+        setSuggestedQuestions(questions);
+        return questions;
+      } else {
+        throw new Error(response.data.error || '获取推荐问题失败');
+      }
+    } catch (error) {
+      console.error('获取推荐问题失败:', error);
+      // 如果API调用失败，返回默认问题
+      const defaultQuestions = [
+        `"${nodeText}"的核心概念是什么？`,
+        `"${nodeText}"的主要应用有哪些？`,
+        `"${nodeText}"的详细解释是什么？`
+      ];
+      setSuggestedQuestions(defaultQuestions);
+      return defaultQuestions;
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  };
+
+  // 继续回答功能
+  const continueAnswer = async (lastMessageIndex) => {
+    if (isContinuing || isTyping) return;
+
+    setIsContinuing(true);
+
+    try {
+      // 获取最后一条AI回答
+      const lastAIMessage = chatMessages[lastMessageIndex];
+      if (!lastAIMessage || lastAIMessage.type !== 'ai') {
+        throw new Error('未找到AI回答');
+      }
+
+      // 调用后端API继续回答
+      const response = await axios.post('http://localhost:3001/api/mindmap/continue-answer', {
+        previousAnswer: lastAIMessage.content,
+        nodeText: currentNode,
+        nodeLevel: currentNodeLevel,
+        provider: selectedProvider,
+        model: selectedModel,
+        conversationHistory: chatMessages
+      });
+
+      if (response.data.success) {
+        const { response: continuedAnswer, isComplete } = response.data.data;
+        
+        // 更新最后一条AI消息
+        const updatedMessages = [...chatMessages];
+        updatedMessages[lastMessageIndex] = {
+          ...lastAIMessage,
+          content: lastAIMessage.content + '\n\n' + continuedAnswer,
+          showContinueButton: true,
+          isComplete: isComplete
+        };
+        
+        setChatMessages(updatedMessages);
+        
+        // 如果AI判断回答完整，显示提示
+        if (isComplete) {
+          setSuccess('AI判断回答已经完整，无需继续补充。');
+        }
+      } else {
+        throw new Error(response.data.error || '继续回答失败');
+      }
+    } catch (error) {
+      console.error('继续回答失败:', error);
+      const errorMessage = error.response?.data?.error || '继续回答时发生错误，请重试。';
+      setChatMessages(prev => [...prev, { 
+        type: 'system', 
+        content: `❌ ${errorMessage}` 
+      }]);
+    } finally {
+      setIsContinuing(false);
+    }
+  };
+
+  // 检查AI回答是否可能不完整
+  const isAnswerIncomplete = (content) => {
+    if (!content || typeof content !== 'string') return false;
+    
+    const trimmedContent = content.trim();
+    
+    // 调试信息
+    console.log('🔍 检测AI回答完整性:', {
+      content: trimmedContent.substring(0, 100) + '...',
+      length: trimmedContent.length,
+      lastChar: trimmedContent.slice(-5)
+    });
+    
+    // 如果回答很短，可能不完整
+    if (trimmedContent.length < 120) {
+      console.log('✅ 检测结果: 回答太短，需要继续');
+      return true;
     }
     
-    return questions;
+    // 检查不完整回答的模式 - 更精确的检测
+    const incompletePatterns = [
+      // 明确的未完成词汇
+      /等等$/,  // 以"等等"结尾
+      /\.\.\.$/,  // 以省略号结尾
+      /更多$/,  // 以"更多"结尾
+      /还有$/,  // 以"还有"结尾
+      /另外$/,  // 以"另外"结尾
+      /此外$/,  // 以"此外"结尾
+      /同时$/,  // 以"同时"结尾
+      /而且$/,  // 以"而且"结尾
+      /并且$/,  // 以"并且"结尾
+      /以及$/,  // 以"以及"结尾
+      /包括$/,  // 以"包括"结尾
+      /例如$/,  // 以"例如"结尾
+      /比如$/,  // 以"比如"结尾
+      /具体$/,  // 以"具体"结尾
+      /详细$/,  // 以"详细"结尾
+      /深入$/,  // 以"深入"结尾
+      /进一步$/,  // 以"进一步"结尾
+      /继续$/,  // 以"继续"结尾
+      /补充$/,  // 以"补充"结尾
+      /扩展$/,  // 以"扩展"结尾
+      /完善$/,  // 以"完善"结尾
+      
+      // 不完整的标点符号
+      /，$/,  // 以逗号结尾（可能不完整）
+      /，\s*$/,  // 以逗号加空格结尾
+      /：$/,  // 以冒号结尾
+      /：\s*$/,  // 以冒号加空格结尾
+      
+      // 不完整的句子结构
+      /^.{0,50}$/,  // 回答太短（少于50字符）
+      /^.{50,100}$/,  // 回答较短（50-100字符），可能不完整
+    ];
+    
+    // 检查是否以不完整的句子结尾
+    const isIncomplete = incompletePatterns.some(pattern => pattern.test(trimmedContent));
+    
+    // 额外检查：如果回答以问号结尾，通常表示完整
+    if (trimmedContent.endsWith('？') || trimmedContent.endsWith('?')) {
+      console.log('❌ 检测结果: 回答以问号结尾，通常是完整的');
+      return false;
+    }
+    
+    // 额外检查：如果回答以句号结尾且长度足够，通常表示完整
+    if ((trimmedContent.endsWith('。') || trimmedContent.endsWith('.')) && trimmedContent.length > 150) {
+      console.log('❌ 检测结果: 回答以句号结尾且长度足够，通常是完整的');
+      return false;
+    }
+    
+    if (isIncomplete) {
+      console.log('✅ 检测结果: 回答不完整，需要继续');
+    } else {
+      console.log('❌ 检测结果: 回答完整，不需要继续');
+    }
+    
+    return isIncomplete;
   };
 
   // 发送消息 - 调用真实API
@@ -662,20 +787,20 @@ const MindmapGenerator = () => {
             )}
 
             <div className="space-x-3">
-                             <button
-                 onClick={generateMindmap}
-                 disabled={loading}
-                 className="btn-primary flex-1 flex items-center justify-center"
-               >
-                 {loading ? (
-                   <>
-                     <div className="loading-spinner mr-2"></div>
-                     🔄 生成中...
-                   </>
-                 ) : (
-                   '🚀 生成思维导图'
-                 )}
-               </button>
+              <button
+                onClick={generateMindmap}
+                disabled={loading}
+                className="btn-primary flex-1 flex items-center justify-center"
+              >
+                {loading ? (
+                  <>
+                    <div className="loading-spinner mr-2"></div>
+                    🔄 生成中...
+                  </>
+                ) : (
+                  '🚀 生成思维导图'
+                )}
+              </button>
               
               <button
                 onClick={clearMindmap}
@@ -689,41 +814,44 @@ const MindmapGenerator = () => {
 
         {/* 思维导图显示区域 */}
         <div className="bg-white rounded-lg shadow-md p-6">
-                     <div className="flex justify-between items-center mb-4">
-             <h2 className="text-xl font-semibold text-gray-800">
-               🎨 思维导图 
-               <span className="text-sm font-normal text-gray-600 ml-2">
-                 (点击💡进行AI问答)
-               </span>
-             </h2>
-             
-             {/* 导出功能按钮组 - 与标题拉开距离，均匀分布 */}
-             <div className="export-btn-container" style={{ marginLeft: 'auto', paddingLeft: '40px' }}>
-                                                <button
-                   onClick={exportToMarkdown}
-                   disabled={!mindmapResult || isExportingPNG}
-                   className="export-btn flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors duration-200"
-                   title={mindmapResult && mindmapResult.trim() ? "导出为Markdown文件" : "请先生成思维导图"}
-                 >
-                   导出markdown
-                 </button>
-                               <button
-                  onClick={exportToPNG}
-                  disabled={!mindmapResult || isExportingPNG}
-                  className="export-btn flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors duration-200"
-                  title={mindmapResult && mindmapResult.trim() ? "导出为PNG图片" : "请先生成思维导图"}
-                >
-                  {isExportingPNG ? (
-                    <>
-                      <div className="loading-spinner mr-2"></div>
-                      🖼️ 导出中...
-                    </>
-                  ) : (
-                    '导出png'
-                  )}
-                </button>
-             </div>
-           </div>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-gray-800">
+              🎨 思维导图 
+              <span className="text-sm font-normal text-gray-600 ml-2">
+                (点击💡进行AI问答)
+              </span>
+            </h2>
+            
+            {/* 导出功能按钮组 - 与标题拉开距离，均匀分布 */}
+            <div className="export-btn-container" style={{ marginLeft: 'auto', paddingLeft: '40px' }}>
+             <button
+               onClick={exportToMarkdown}
+               disabled={!mindmapResult || isExportingPNG}
+               className="export-btn flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors duration-200"
+               title={mindmapResult && mindmapResult.trim() ? "导出为Markdown文件" : "请先生成思维导图"}
+               translate="no"
+             >
+               导出markdown
+             </button>
+              <button
+                onClick={exportToPNG}
+                disabled={!mindmapResult || isExportingPNG}
+                className="export-btn flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors duration-200"
+                title={mindmapResult && mindmapResult.trim() ? "导出为PNG图片" : "请先生成思维导图"}
+                translate="no"
+              >
+                {isExportingPNG ? (
+                  <>
+                    <div className="loading-spinner mr-2"></div>
+                    🖼️ 导出中...
+                  </>
+                ) : (
+                  '导出png'
+                )}
+              </button>
+            </div>
+          </div>
+          
           
           <div className="border border-gray-300 rounded-lg p-4" style={{ minHeight: '400px', maxHeight: '600px', overflow: 'auto' }}>
             {mindmapResult ? (
@@ -851,24 +979,101 @@ const MindmapGenerator = () => {
                     justifyContent: msg.type === 'user' ? 'flex-end' : 'flex-start'
                   }}
                 >
-                  {/* AI消息头像 */}
+                  {/* AI消息头像和按钮容器 */}
                   {msg.type === 'ai' && (
                     <div 
                       style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        background: '#f0f0f0',
                         display: 'flex',
+                        flexDirection: 'column',
                         alignItems: 'center',
-                        justifyContent: 'center',
                         marginRight: '8px',
-                        fontSize: '16px',
                         flexShrink: 0,
                         alignSelf: 'flex-start'
                       }}
                     >
-                      🤖
+                      {/* AI头像 */}
+                      <div 
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: '#f0f0f0',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '16px',
+                          marginBottom: '8px'
+                        }}
+                      >
+                        🤖
+                      </div>
+                      
+                      {/* 添加到思维导图按钮 - 放在头像下方 */}
+                      {mindmapResult && !msg.content.startsWith('❌') && !msg.content.includes('您好！我是AI助手，很高兴为您解答关于') && (
+                        <button
+                          onClick={() => addResponseToMindmap(msg.content)}
+                          disabled={isOrganizing}
+                          style={{
+                            background: isOrganizing 
+                              ? 'linear-gradient(135deg, #e0e0e0 0%, #cccccc 100%)'
+                              : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '16px',
+                            padding: '6px 12px',
+                            fontSize: '10px',
+                            cursor: isOrganizing ? 'not-allowed' : 'pointer',
+                            opacity: isOrganizing ? 0.7 : 1,
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            boxShadow: isOrganizing 
+                              ? '0 2px 4px rgba(0,0,0,0.1)'
+                              : '0 3px 8px rgba(102, 126, 234, 0.3)',
+                            fontWeight: '600',
+                            position: 'relative',
+                            overflow: 'hidden',
+                            minWidth: '80px',
+                            justifyContent: 'center'
+                          }}
+                          onMouseOver={(e) => {
+                            if (!isOrganizing) {
+                              e.target.style.transform = 'translateY(-1px) scale(1.05)';
+                              e.target.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.4)';
+                            }
+                          }}
+                          onMouseOut={(e) => {
+                            if (!isOrganizing) {
+                              e.target.style.transform = 'translateY(0) scale(1)';
+                              e.target.style.boxShadow = '0 3px 8px rgba(102, 126, 234, 0.3)';
+                            }
+                          }}
+                          title="将此回答整理为子节点添加到思维导图"
+                        >
+                          {isOrganizing ? (
+                            <>
+                              <span className="loading-spinner" style={{ 
+                                width: '12px', 
+                                height: '12px',
+                                border: '2px solid rgba(255,255,255,0.3)',
+                                borderTop: '2px solid white'
+                              }}></span>
+                              <span style={{ fontWeight: '500' }}>整理中</span>
+                            </>
+                          ) : (
+                            <>
+                              <span style={{ 
+                                fontSize: '12px',
+                                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
+                              }}>
+                                ✨
+                              </span>
+                              <span style={{ fontWeight: '1000' }}>添加到思维导图</span>
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   )}
                   
@@ -893,137 +1098,206 @@ const MindmapGenerator = () => {
                     </div>
                   )}
                   
-                  {/* 消息内容 - 改进长文本显示 */}
+                  {/* 消息内容容器 - 包含内容和继续回答按钮 */}
                   <div 
                     style={{
                       maxWidth: '70%',
-                      padding: '12px 16px',
-                      borderRadius: '12px',
-                      fontSize: '14px',
-                      lineHeight: '1.5',
-                      background: msg.type === 'user' 
-                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
-                        : msg.type === 'system'
-                        ? '#e8f5e9'
-                        : 'white',
-                      color: msg.type === 'user' ? 'white' : '#333',
-                      boxShadow: msg.type === 'ai' || msg.type === 'system' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
-                      whiteSpace: 'pre-line',
-                      position: 'relative',
-                      wordBreak: 'break-word',
-                      overflowWrap: 'break-word'
+                      display: 'flex',
+                      flexDirection: 'column'
                     }}
                   >
-                    {msg.content}
-                  </div>
-                  
-                                     {/* 为AI回复添加"添加到思维导图"按钮 - 重新设计布局，只在回答客户问题时显示 */}
-                   {msg.type === 'ai' && !msg.content.startsWith('❌') && mindmapResult && !msg.content.includes('您好！我是AI助手，很高兴为您解答关于') && (
-                                         <div
-                       style={{
-                         marginTop: '10px',
-                         marginLeft: '40px', // 与AI头像对齐
-                         display: 'flex',
-                         justifyContent: 'flex-start',
-                         position: 'relative'
-                       }}
-                     >
-                       {/* 装饰性连接线 */}
-                       <div style={{
-                         position: 'absolute',
-                         left: '-8px',
-                         top: '50%',
-                         width: '16px',
-                         height: '1px',
-                         background: 'linear-gradient(90deg, transparent, #667eea, transparent)',
-                         transform: 'translateY(-50%)'
-                       }} />
-                                             <button
-                         onClick={() => addResponseToMindmap(msg.content)}
-                         disabled={isOrganizing}
-                         style={{
-                           background: isOrganizing 
-                             ? 'linear-gradient(135deg, #e0e0e0 0%, #cccccc 100%)'
-                             : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                           color: 'white',
-                           border: 'none',
-                           borderRadius: '20px',
-                           padding: '8px 16px',
-                           fontSize: '12px',
-                           cursor: isOrganizing ? 'not-allowed' : 'pointer',
-                           opacity: isOrganizing ? 0.7 : 1,
-                           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                           display: 'flex',
-                           alignItems: 'center',
-                           gap: '6px',
-                           boxShadow: isOrganizing 
-                             ? '0 2px 4px rgba(0,0,0,0.1)'
-                             : '0 4px 12px rgba(102, 126, 234, 0.3)',
-                           fontWeight: '600',
-                           position: 'relative',
-                           overflow: 'hidden'
-                         }}
-                         onMouseOver={(e) => {
-                           if (!isOrganizing) {
-                             e.target.style.transform = 'translateY(-2px) scale(1.02)';
-                             e.target.style.boxShadow = '0 8px 25px rgba(102, 126, 234, 0.4)';
-                           }
-                         }}
-                         onMouseOut={(e) => {
-                           if (!isOrganizing) {
-                             e.target.style.transform = 'translateY(0) scale(1)';
-                             e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
-                           }
-                         }}
-                         onMouseDown={(e) => {
-                           if (!isOrganizing) {
-                             e.target.style.transform = 'translateY(0) scale(0.98)';
-                           }
-                         }}
-                         title="将此回答整理为子节点添加到思维导图"
-                       >
-                         {/* 背景光效 */}
-                         <div style={{
-                           position: 'absolute',
-                           top: 0,
-                           left: '-100%',
-                           width: '100%',
-                           height: '100%',
-                           background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                           transition: 'left 0.5s',
-                           pointerEvents: 'none'
-                         }} 
-                         onMouseEnter={(e) => {
-                           if (!isOrganizing) {
-                             e.target.style.left = '100%';
-                           }
-                         }}
-                         />
-                         
-                         {isOrganizing ? (
-                           <>
-                             <span className="loading-spinner" style={{ 
-                               width: '14px', 
-                               height: '14px',
-                               border: '2px solid rgba(255,255,255,0.3)',
-                               borderTop: '2px solid white'
-                             }}></span>
-                             <span style={{ fontWeight: '500' }}>整理中...</span>
-                           </>
-                         ) : (
-                           <>
-                             <span style={{ 
-                               fontSize: '14px',
-                               filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
-                             }}>
-                               ✨
-                             </span>
-                             <span style={{ fontWeight: '500' }}>添加到思维导图</span>
-                           </>
-                         )}
-                       </button>
+                    {/* AI回答内容 */}
+                    <div 
+                      style={{
+                        padding: '12px 16px',
+                        borderRadius: '12px',
+                        fontSize: '14px',
+                        lineHeight: '1.5',
+                        background: msg.type === 'user' 
+                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                          : msg.type === 'system'
+                          ? '#e8f5e9'
+                          : 'white',
+                        color: msg.type === 'user' ? 'white' : '#333',
+                        boxShadow: msg.type === 'ai' || msg.type === 'system' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none',
+                        whiteSpace: 'pre-line',
+                        position: 'relative',
+                        wordBreak: 'break-word',
+                        overflowWrap: 'break-word'
+                      }}
+                    >
+                      {msg.content}
                     </div>
-                  )}
+                    
+                    {/* 继续回答按钮 - 紧贴在AI回答内容下方 */}
+                    {msg.type === 'ai' && !msg.content.startsWith('❌') && !msg.content.includes('您好！我是AI助手，很高兴为您解答关于') && (
+                      <div
+                        style={{
+                          marginTop: '8px',
+                          display: 'flex',
+                          justifyContent: 'flex-start',
+                          gap: '8px',
+                          flexWrap: 'wrap'
+                        }}
+                      >
+                        {/* 继续回答按钮 - 用户手动触发，直接执行 */}
+                        {!msg.showContinueButton && (
+                          <button
+                            onClick={() => {
+                              // 直接调用继续回答功能
+                              continueAnswer(index);
+                            }}
+                            disabled={isContinuing || isTyping || isOrganizing}
+                            style={{
+                              background: (isContinuing || isTyping || isOrganizing) 
+                                ? 'linear-gradient(135deg, #e0e0e0 0%, #cccccc 100%)'
+                                : 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '18px',
+                              padding: '6px 14px',
+                              fontSize: '11px',
+                              cursor: (isContinuing || isTyping || isOrganizing) ? 'not-allowed' : 'pointer',
+                              opacity: (isContinuing || isTyping || isOrganizing) ? 0.7 : 1,
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              boxShadow: (isContinuing || isTyping || isOrganizing) 
+                                ? '0 2px 4px rgba(0,0,0,0.1)'
+                                : '0 3px 8px rgba(76, 175, 80, 0.3)',
+                              fontWeight: '600',
+                              position: 'relative',
+                              overflow: 'hidden'
+                            }}
+                            onMouseOver={(e) => {
+                              if (!isContinuing && !isTyping && !isOrganizing) {
+                                e.target.style.transform = 'translateY(-1px) scale(1.02)';
+                                e.target.style.boxShadow = '0 6px 20px rgba(76, 175, 80, 0.4)';
+                              }
+                            }}
+                            onMouseOut={(e) => {
+                              if (!isContinuing && !isTyping && !isOrganizing) {
+                                e.target.style.transform = 'translateY(0) scale(1)';
+                                e.target.style.boxShadow = '0 3px 8px rgba(76, 175, 80, 0.3)';
+                              }
+                            }}
+                            title="让AI继续完善这个回答"
+                          >
+                            {isContinuing ? (
+                              <>
+                                <span className="loading-spinner" style={{ 
+                                  width: '12px', 
+                                  height: '12px',
+                                  border: '2px solid rgba(255,255,255,0.3)',
+                                  borderTop: '2px solid white'
+                                }}></span>
+                                <span style={{ fontWeight: '500' }}>继续中...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span style={{ 
+                                  fontSize: '12px',
+                                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
+                                }}>
+                                  ➕
+                                </span>
+                                <span style={{ fontWeight: '500' }}>继续回答</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                        
+                        {/* 回答完整提示 - 当AI判断回答完整时显示 */}
+                        {msg.showContinueButton && msg.isComplete && (
+                          <div
+                            style={{
+                              background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
+                              color: '#2e7d32',
+                              border: '1px solid #4caf50',
+                              borderRadius: '18px',
+                              padding: '6px 12px',
+                              fontSize: '10px',
+                              fontWeight: '500',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              boxShadow: '0 2px 4px rgba(76, 175, 80, 0.2)'
+                            }}
+                            title="AI判断回答已经完整"
+                          >
+                            <span style={{ fontSize: '12px' }}>✅</span>
+                            <span>回答已完整</span>
+                          </div>
+                        )}
+                        
+                        {/* 继续回答按钮 - 当AI判断回答不完整时显示 */}
+                        {msg.showContinueButton && !msg.isComplete && (
+                          <button
+                            onClick={() => continueAnswer(index)}
+                            disabled={isContinuing || isTyping || isOrganizing}
+                            style={{
+                              background: (isContinuing || isTyping || isOrganizing) 
+                                ? 'linear-gradient(135deg, #e0e0e0 0%, #cccccc 100%)'
+                                : 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '18px',
+                              padding: '6px 14px',
+                              fontSize: '11px',
+                              cursor: (isContinuing || isTyping || isOrganizing) ? 'not-allowed' : 'pointer',
+                              opacity: (isContinuing || isTyping || isOrganizing) ? 0.7 : 1,
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              boxShadow: (isContinuing || isTyping || isOrganizing) 
+                                ? '0 2px 4px rgba(0,0,0,0.1)'
+                                : '0 3px 8px rgba(76, 175, 80, 0.3)',
+                              fontWeight: '600',
+                              position: 'relative',
+                              overflow: 'hidden'
+                            }}
+                            onMouseOver={(e) => {
+                              if (!isContinuing && !isTyping && !isOrganizing) {
+                                e.target.style.transform = 'translateY(-1px) scale(1.02)';
+                                e.target.style.boxShadow = '0 6px 20px rgba(76, 175, 80, 0.4)';
+                              }
+                            }}
+                            onMouseOut={(e) => {
+                              if (!isContinuing && !isTyping && !isOrganizing) {
+                                e.target.style.transform = 'translateY(0) scale(1)';
+                                e.target.style.boxShadow = '0 3px 8px rgba(76, 175, 80, 0.3)';
+                              }
+                            }}
+                            title="让AI继续完善这个回答"
+                          >
+                            {isContinuing ? (
+                              <>
+                                <span className="loading-spinner" style={{ 
+                                  width: '12px', 
+                                  height: '12px',
+                                  border: '2px solid rgba(255,255,255,0.3)',
+                                  borderTop: '2px solid white'
+                                }}></span>
+                                <span style={{ fontWeight: '500' }}>继续中...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span style={{ 
+                                  fontSize: '12px',
+                                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
+                                }}>
+                                  ➕
+                                </span>
+                                <span style={{ fontWeight: '500' }}>继续回答</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   
                   {/* 用户消息头像 */}
                   {msg.type === 'user' && (
@@ -1095,40 +1369,66 @@ const MindmapGenerator = () => {
             >
               <div style={{ fontSize: '12px', color: '#666', marginBottom: '10px', fontWeight: '500' }}>
                 💡 推荐问题
+                {isLoadingSuggestions && (
+                  <span style={{ marginLeft: '8px', fontSize: '10px', color: '#999' }}>
+                    🔄 生成中...
+                  </span>
+                )}
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                 {getSuggestedQuestions(currentNodeLevel, currentNode).map((question, index) => (
-                  <button
-                    key={index}
-                    onClick={() => sendMessage(question)}
-                    disabled={isTyping || isOrganizing}
-                    style={{
-                      background: (isTyping || isOrganizing) ? '#f5f5f5' : 'white',
-                      border: '1px solid #667eea',
-                      color: (isTyping || isOrganizing) ? '#999' : '#667eea',
-                      padding: '6px 12px',
-                      borderRadius: '20px',
-                      fontSize: '12px',
-                      cursor: (isTyping || isOrganizing) ? 'not-allowed' : 'pointer',
-                      transition: 'all 0.3s',
-                      opacity: (isTyping || isOrganizing) ? 0.6 : 1
-                    }}
-                    onMouseOver={(e) => {
-                      if (!isTyping && !isOrganizing) {
-                        e.target.style.background = '#667eea';
-                        e.target.style.color = 'white';
-                      }
-                    }}
-                    onMouseOut={(e) => {
-                      if (!isTyping && !isOrganizing) {
-                        e.target.style.background = 'white';
-                        e.target.style.color = '#667eea';
-                      }
-                    }}
-                  >
-                    {question}
-                  </button>
-                ))}
+                {isLoadingSuggestions ? (
+                  <div style={{ 
+                    padding: '8px 16px', 
+                    background: '#f5f5f5', 
+                    borderRadius: '20px', 
+                    fontSize: '12px', 
+                    color: '#999',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <div className="loading-spinner" style={{ 
+                      width: '12px', 
+                      height: '12px',
+                      border: '2px solid #e0e0e0',
+                      borderTop: '2px solid #667eea'
+                    }}></div>
+                    AI正在生成推荐问题...
+                  </div>
+                ) : (
+                  suggestedQuestions.map((question, index) => (
+                    <button
+                      key={index}
+                      onClick={() => sendMessage(question)}
+                      disabled={isTyping || isOrganizing}
+                      style={{
+                        background: (isTyping || isOrganizing) ? '#f5f5f5' : 'white',
+                        border: '1px solid #667eea',
+                        color: (isTyping || isOrganizing) ? '#999' : '#667eea',
+                        padding: '6px 12px',
+                        borderRadius: '20px',
+                        fontSize: '12px',
+                        cursor: (isTyping || isOrganizing) ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.3s',
+                        opacity: (isTyping || isOrganizing) ? 0.6 : 1
+                      }}
+                      onMouseOver={(e) => {
+                        if (!isTyping && !isOrganizing) {
+                          e.target.style.background = '#667eea';
+                          e.target.style.color = 'white';
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        if (!isTyping && !isOrganizing) {
+                          e.target.style.background = 'white';
+                          e.target.style.color = '#667eea';
+                        }
+                      }}
+                    >
+                      {question}
+                    </button>
+                  ))
+                )}
               </div>
             </div>
 

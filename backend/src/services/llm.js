@@ -110,6 +110,115 @@ class LLMService {
     }
   }
 
+  // 生成继续回答
+  async generateContinuedAnswer(previousAnswer, nodeText, nodeLevel, provider = 'deepseek', model = 'deepseek-chat', conversationHistory = []) {
+    const prompt = this.buildContinueAnswerPrompt(previousAnswer, nodeText, nodeLevel, conversationHistory);
+
+    switch (provider) {
+      case 'deepseek':
+        const result = await this.generateWithDeepSeek(prompt, model);
+        return result.trim();
+      default:
+        throw new Error(`不支持的提供商: ${provider}`);
+    }
+  }
+
+  // 构建继续回答的 prompt
+  buildContinueAnswerPrompt(previousAnswer, nodeText, nodeLevel, conversationHistory) {
+    let contextInfo = '';
+    
+    // 添加对话历史上下文
+    if (conversationHistory && conversationHistory.length > 0) {
+      const recentHistory = conversationHistory.slice(-3); // 只取最近3条对话
+      contextInfo = '\n\n对话历史：\n';
+      recentHistory.forEach(msg => {
+        if (msg.type === 'user') {
+          contextInfo += `用户：${msg.content}\n`;
+        } else if (msg.type === 'ai') {
+          contextInfo += `AI：${msg.content}\n`;
+        }
+      });
+    }
+
+    return `请继续完善以下关于"${nodeText}"的回答。
+
+之前的回答：
+${previousAnswer}
+
+${contextInfo}
+
+要求：
+1. 首先判断之前的回答是否已经完整回答了用户的问题
+2. 如果回答已经完整，请回复："[COMPLETE] 回答已经完整，无需继续补充。"
+3. 如果回答不完整，请继续之前的回答，不要重复已经说过的内容
+4. 补充更多细节、例子或相关信息
+5. 确保回答的完整性和连贯性
+6. 根据节点层级(${nodeLevel})调整回答的深度
+7. 保持回答的实用性和价值
+
+请直接输出继续的内容，不要添加"继续"、"补充"等前缀。`;
+  }
+
+  // 生成推荐问题
+  async generateSuggestedQuestions(nodeText, nodeLevel, provider = 'deepseek', model = 'deepseek-chat') {
+    const prompt = this.buildSuggestedQuestionsPrompt(nodeText, nodeLevel);
+
+    switch (provider) {
+      case 'deepseek':
+        const result = await this.generateWithDeepSeek(prompt, model);
+        return this.parseSuggestedQuestions(result);
+      default:
+        throw new Error(`不支持的提供商: ${provider}`);
+    }
+  }
+
+  // 构建推荐问题的 prompt
+  buildSuggestedQuestionsPrompt(nodeText, nodeLevel) {
+    return `请根据以下思维导图节点信息，生成3个相关的推荐问题。
+
+节点信息：
+- 节点内容：${nodeText}
+- 节点层级：${nodeLevel}
+
+要求：
+1. 问题应该与节点内容高度相关
+2. 问题应该有助于深入理解该节点
+3. 问题应该实用且有价值
+4. 问题长度适中，表达清晰
+5. 根据节点层级调整问题的深度和复杂度
+
+请直接输出3个问题，每行一个问题，不要添加任何编号、前缀或解释。`;
+  }
+
+  // 解析推荐问题
+  parseSuggestedQuestions(response) {
+    if (!response || typeof response !== 'string') {
+      return [];
+    }
+
+    // 按行分割，过滤空行
+    const questions = response
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .slice(0, 3); // 最多取3个问题
+
+    // 如果问题数量不足，添加默认问题
+    if (questions.length < 3) {
+      const defaultQuestions = [
+        '这个概念的详细解释是什么？',
+        '有哪些实际应用场景？',
+        '需要注意哪些要点？'
+      ];
+      
+      for (let i = questions.length; i < 3; i++) {
+        questions.push(defaultQuestions[i - questions.length]);
+      }
+    }
+
+    return questions;
+  }
+
   // 构建思维导图的 prompt
   buildMindmapPrompt(text) {
     return `请将以下内容转换为清晰的思维导图结构，使用标准的Markdown格式。
