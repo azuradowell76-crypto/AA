@@ -420,7 +420,7 @@ ${levelSymbol} 历史意义：奠定AI研究基础，启发后续数十年发展
 
       // 创建 axios 实例
       const axiosInstance = axios.create({
-        timeout: 60000,
+        timeout: 120000, // 增加到2分钟
         headers: {
           'Authorization': `Bearer ${this.providers.deepseek.apiKey}`,
           'Content-Type': 'application/json',
@@ -474,11 +474,16 @@ ${levelSymbol} 历史意义：奠定AI研究基础，启发后续数十年发展
           throw new Error('DeepSeek 服务器错误，请稍后重试');
         }
       } else if (error.request) {
-        if (error.code === 'ECONNABORTED') {
-          throw new Error('DeepSeek API 请求超时，请检查网络连接');
+        if (error.code === 'ECONNABORTED' || error.message === 'aborted') {
+          throw new Error('DeepSeek API 请求超时，内容可能过大，请尝试减少输入内容或稍后重试');
         } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
           throw new Error('无法连接到 DeepSeek API，请检查网络连接');
         }
+      }
+      
+      // 特殊处理aborted错误
+      if (error.message === 'aborted') {
+        throw new Error('请求被中断，可能是内容过大导致超时，请尝试减少输入内容');
       }
       
       throw new Error(`DeepSeek生成失败: ${error.message}`);

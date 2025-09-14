@@ -6,7 +6,12 @@ const MindmapGenerator = () => {
   const [title, setTitle] = useState('');
   const [selectedProvider, setSelectedProvider] = useState('deepseek');
   const [selectedModel, setSelectedModel] = useState('deepseek-chat');
-  const [providers, setProviders] = useState([]);
+  const [providers, setProviders] = useState([
+    {
+      name: 'deepseek',
+      models: ['deepseek-chat']
+    }
+  ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -32,6 +37,12 @@ const MindmapGenerator = () => {
   
   // PNG导出loading状态
   const [isExportingPNG, setIsExportingPNG] = useState(false);
+  
+  // 文件上传相关状态
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [fileContent, setFileContent] = useState('');
+  const [fileName, setFileName] = useState('');
 
   // 工具函数：处理文件名，确保下载文件名安全
   const getSafeFileName = (mindmapContent, extension) => {
@@ -104,11 +115,12 @@ const MindmapGenerator = () => {
       }
     } catch (error) {
       console.error('获取提供商列表失败:', error);
+      // 设置默认提供商，确保UI始终显示
       setProviders([
-        // {
-        //   name: 'ollama',
-        //   models: ['llama3:latest']
-        // }
+        {
+          name: 'deepseek',
+          models: ['deepseek-chat']
+        }
       ]);
     }
   };
@@ -121,9 +133,119 @@ const MindmapGenerator = () => {
     }
   };
 
-  const generateMindmap = async () => {
-    if (!inputText.trim()) {
-      setError('请输入要分析的内容');
+  // 文件处理函数
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // 清空之前的内容和状态
+      setFileContent('');
+      setInputText('');
+      setTitle('');
+      setError('');
+      setSuccess('');
+      setMindmapResult('');
+      
+      setSelectedFile(file);
+      setFileName(file.name);
+      
+      // 检查文件类型
+      const fileType = file.type;
+      const fileName = file.name.toLowerCase();
+      
+      // 支持的文件类型
+      const supportedTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'text/plain',
+        'text/csv',
+        'application/json',
+        'text/javascript',
+        'text/html',
+        'text/css',
+        'text/xml',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/bmp',
+        'image/webp'
+      ];
+      
+      const supportedExtensions = [
+        '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+        '.txt', '.csv', '.json', '.js', '.html', '.css', '.xml',
+        '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'
+      ];
+      
+      const isSupported = supportedTypes.includes(fileType) || 
+                         supportedExtensions.some(ext => fileName.endsWith(ext));
+      
+      if (!isSupported) {
+        setError('不支持的文件类型，请选择PDF、DOC、XLSX、PPT、图片、文本或代码文件');
+        return;
+      }
+      
+      setError('');
+      console.log('📁 选择文件:', file.name, '类型:', fileType);
+    }
+  };
+
+  const processFile = async () => {
+    if (!selectedFile) {
+      setError('请先选择文件');
+      return;
+    }
+
+    setIsProcessingFile(true);
+    setError('');
+    setFileContent('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      console.log('🔄 开始处理文件:', selectedFile.name);
+      
+      const response = await axios.post('http://localhost:3001/api/mindmap/process-file', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.data.success) {
+        const { content, summary } = response.data.data;
+        setFileContent(content);
+        
+        // 如果文件有标题，自动设置
+        if (summary && summary.title) {
+          setTitle(summary.title);
+        }
+        
+        setSuccess(`文件处理成功！提取了 ${content.length} 个字符的内容`);
+        console.log('✅ 文件处理成功:', summary);
+        
+        // 自动生成思维导图
+        await generateMindmapFromContent(content);
+      } else {
+        console.error('文件处理失败:', response.data);
+        setError('文件处理失败: ' + (response.data.message || '未知错误'));
+      }
+    } catch (error) {
+      console.error('文件处理错误:', error);
+      setError('文件处理失败: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setIsProcessingFile(false);
+    }
+  };
+
+  // 从文件内容生成思维导图
+  const generateMindmapFromContent = async (content) => {
+    if (!content.trim()) {
+      setError('文件内容为空');
       return;
     }
 
@@ -133,7 +255,7 @@ const MindmapGenerator = () => {
 
     try {
       const response = await axios.post('http://localhost:3001/api/mindmap/generate', {
-        text: inputText,
+        text: content,
         title: title || '思维导图',
         provider: selectedProvider,
         model: selectedModel
@@ -148,6 +270,62 @@ const MindmapGenerator = () => {
       }
     } catch (err) {
       setError(
+        err.response?.data?.message || 
+        '生成思维导图失败，请检查网络连接或稍后重试'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearFile = () => {
+    setSelectedFile(null);
+    setFileName('');
+    setFileContent('');
+    setInputText('');
+    setTitle('');
+    setError('');
+  };
+
+  const generateMindmap = async () => {
+    // 如果有选中的文件，先处理文件
+    if (selectedFile && !fileContent) {
+      await processFile();
+      return;
+    }
+
+    // 检查是否有内容可以生成思维导图
+    if (!inputText.trim() && !fileContent) {
+      setError('请输入要分析的内容或选择文件');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      // 优先使用文件内容，如果没有文件内容则使用输入文本
+      const contentToUse = fileContent || inputText.trim();
+      const response = await axios.post('http://localhost:3001/api/mindmap/generate', {
+        text: contentToUse,
+        title: title || '思维导图',
+        provider: selectedProvider,
+        model: selectedModel
+      });
+
+      if (response.data.success) {
+        const { markdown, provider, model } = response.data.data;
+        setMindmapResult(markdown);
+        setSuccess(`思维导图生成成功！使用了 ${selectedProvider}/${selectedModel}`);
+      } else {
+        console.error('生成思维导图失败:', response.data);
+        setError(`生成思维导图失败: ${response.data.message || '未知错误'}`);
+      }
+    } catch (err) {
+      console.error('生成思维导图错误:', err);
+      setError(
+        err.response?.data?.message || 
         err.response?.data?.error || 
         '无法连接到服务器，请确保后端服务正在运行'
       );
@@ -164,6 +342,11 @@ const MindmapGenerator = () => {
     setMindmapResult('');
     setShowAIModal(false);
     setChatMessages([]);
+    // 清空文件相关状态
+    setSelectedFile(null);
+    setFileName('');
+    setFileContent('');
+    setIsProcessingFile(false);
   };
 
   // 打开AI对话框
@@ -723,7 +906,7 @@ const MindmapGenerator = () => {
             {/* 模型选择 */}
             {providers.length > 0 && (
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                {/* <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     AI提供商
                   </label>
@@ -738,7 +921,7 @@ const MindmapGenerator = () => {
                       </option>
                     ))}
                   </select>
-                </div>
+                </div> */}
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -764,7 +947,7 @@ const MindmapGenerator = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                内容 *
+                内容 *（支持文本和视频链接）
               </label>
               <textarea
                 value={inputText}
@@ -772,6 +955,73 @@ const MindmapGenerator = () => {
                 placeholder="请输入要生成思维导图的内容..."
                 className="w-full h-64 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               />
+            </div>
+
+            {/* 文件上传区域 */}
+            <div key="file-upload-area" className="border border-gray-300 rounded-lg p-6 bg-white" style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+              minHeight: '120px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between'
+            }}>
+              <div className="flex items-center justify-start" style={{ gap: '10px' }}>
+                <input
+                  key="file-input"
+                  type="file"
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                  id="mindmap-file-upload"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.json,.js,.html,.css,.xml,.jpg,.jpeg,.png,.gif,.bmp,.webp"
+                />
+                <label
+                  key="file-label"
+                  htmlFor="mindmap-file-upload"
+                  className="cursor-pointer rounded-lg font-semibold transition-all duration-300 flex items-center justify-center"
+                  style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                    minWidth: '100px',
+                    height: '40px',
+                    fontSize: '14px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 8px 25px rgba(102, 126, 234, 0.6)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
+                  }}
+                >
+                  📂 选择文件
+                </label>
+                
+                <div className="text-sm text-gray-600 font-medium">
+                  {selectedFile ? `📄 ${fileName}` : '未选择文件'}
+                </div>
+                
+                {selectedFile && (
+                  <button
+                    onClick={clearFile}
+                    className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1 rounded-md hover:bg-red-50 transition-all duration-200"
+                    style={{
+                      fontSize: '12px',
+                      minWidth: '60px'
+                    }}
+                  >
+                    ✕ 移除
+                  </button>
+                )}
+              </div>
+              
+              <div className="text-sm text-gray-600 font-normal text-center">
+                支持PDF、Word、图片文件（文件大小不超过50MB）
+              </div>
             </div>
 
             {error && (
@@ -791,14 +1041,17 @@ const MindmapGenerator = () => {
                 onClick={generateMindmap}
                 disabled={loading}
                 className="btn-primary flex-1 flex items-center justify-center"
+                style={{ fontSize: '16px' }}
               >
                 {loading ? (
                   <>
                     <div className="loading-spinner mr-2"></div>
                     🔄 生成中...
                   </>
+                ) : selectedFile && !fileContent ? (
+                  '📁 处理文件并生成思维导图'
                 ) : (
-                  '🚀 生成思维导图'
+                  '生成思维导图'
                 )}
               </button>
               
@@ -868,7 +1121,7 @@ const MindmapGenerator = () => {
           </div>
         </div>
       </div>
-会
+
       {/* AI问答弹窗 */}
       {showAIModal && (
         <div 
