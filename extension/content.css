@@ -3875,6 +3875,50 @@ html.mindmap-dragging .mindmap-left-panel * {
     font-style: italic;
 }
 
+/* 专有名词样式 - 加粗显示 */
+.node-text .term {
+    font-weight: 700;
+    color: #1565c0;
+    background: linear-gradient(to bottom, transparent 60%, rgba(33, 150, 243, 0.15) 60%);
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+/* 专有名词解释样式 - 较小字体和较浅颜色 */
+.node-text .term-explanation {
+    font-size: 0.8em;
+    color: #888;
+    font-weight: 400;
+    opacity: 0.85;
+    margin-left: 2px;
+    white-space: nowrap;
+}
+
+/* 不同层级节点中的专有名词样式微调 */
+.node-content.level-1 .term {
+    color: #0d47a1;
+}
+
+.node-content.level-2 .term {
+    color: #1565c0;
+}
+
+.node-content.level-3 .term {
+    color: #1976d2;
+}
+
+.node-content.level-4 .term,
+.node-content.level-5 .term,
+.node-content.level-6 .term {
+    color: #1e88e5;
+}
+
+/* 悬停时显示更清晰的解释 */
+.node-text .term-explanation:hover {
+    opacity: 1;
+    color: #555;
+}
+
 /* 双击编辑提示 - 已禁用，避免与操作按钮混淆 */
 .node-content::after {
     content: none;

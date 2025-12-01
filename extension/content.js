@@ -196,6 +196,44 @@ class MindmapSplitScreen {
             }
         });
     }
+    
+    // 解析节点文本，处理专有名词加粗和解释
+    // 格式: **专有名词**(解释) -> <strong class="term">专有名词</strong><span class="term-explanation">(解释)</span>
+    parseNodeText(text) {
+        if (!text) return '';
+        
+        // 正则匹配 **专有名词**(解释) 的格式
+        // 匹配模式：**xxx**(yyy) 或 **xxx**（yyy）（支持中英文括号）
+        const termWithExplanationPattern = /\*\*([^*]+)\*\*[（(]([^)）]+)[)）]/g;
+        
+        // 正则匹配单独的 **专有名词** 格式（没有解释的情况）
+        const termOnlyPattern = /\*\*([^*]+)\*\*/g;
+        
+        // 先处理带解释的专有名词
+        let result = text.replace(termWithExplanationPattern, (match, term, explanation) => {
+            return `<strong class="term">${this.escapeHtml(term)}</strong><span class="term-explanation">(${this.escapeHtml(explanation)})</span>`;
+        });
+        
+        // 再处理没有解释的专有名词
+        result = result.replace(termOnlyPattern, (match, term) => {
+            return `<strong class="term">${this.escapeHtml(term)}</strong>`;
+        });
+        
+        return result;
+    }
+    
+    // HTML转义，防止XSS
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // 检查文本是否包含专有名词格式
+    hasTermFormat(text) {
+        if (!text) return false;
+        return /\*\*[^*]+\*\*/.test(text);
+    }
 
     init() {
         this.createSplitScreenLayout();
@@ -2292,7 +2330,13 @@ _handleError(error) {
             
             const textSpan = document.createElement('span');
             textSpan.className = 'node-text';
-            textSpan.textContent = node.text;
+            
+            // 检查是否包含专有名词格式，使用不同的渲染方式
+            if (this.hasTermFormat(node.text)) {
+                textSpan.innerHTML = this.parseNodeText(node.text);
+            } else {
+                textSpan.textContent = node.text;
+            }
             
             // 如果是AI生成的节点，添加AI标识图标
             if (node.isAI) {
@@ -3115,7 +3159,13 @@ _handleError(error) {
         
         const textSpan = document.createElement('span');
         textSpan.className = 'node-text';
-        textSpan.textContent = text;
+        
+        // 检查是否包含专有名词格式，使用不同的渲染方式
+        if (this.hasTermFormat(text)) {
+            textSpan.innerHTML = this.parseNodeText(text);
+        } else {
+            textSpan.textContent = text;
+        }
         
         if (isAI) {
             const aiLabel = document.createElement('span');
