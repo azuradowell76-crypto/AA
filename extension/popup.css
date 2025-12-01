@@ -1,0 +1,1381 @@
+/* 基础样式重置 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* 节点编辑输入框样式 */
+.node-edit-input {
+    position: relative;
+    z-index: 1000 !important;
+    pointer-events: auto !important;
+    background: white !important;
+    border: 2px solid #2196f3 !important;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+    outline: none !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    width: 800px;
+    height: 700px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    overflow: auto;
+}
+
+.popup-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    background: white;
+    border-radius: 8px;
+    overflow: visible;
+}
+
+/* 头部样式 */
+.popup-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 16px;
+    text-align: center;
+}
+
+.header-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.logo-icon {
+    font-size: 24px;
+}
+
+.header-subtitle {
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+/* 主要内容区域 - 简化布局 */
+.popup-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+}
+
+/* 控制面板 */
+.control-panel {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border-bottom: 1px solid #e0e0e0;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* 输入面板 */
+.input-panel {
+    flex: 0 0 auto;
+    display: none; /* 默认隐藏 */
+    flex-direction: column;
+    background: white;
+    border-bottom: 1px solid #e0e0e0;
+    max-height: 250px; /* 限制高度 */
+    overflow-y: auto; /* 允许滚动 */
+}
+
+.input-panel.show {
+    display: flex !important;
+}
+
+/* 思维导图面板 */
+.mindmap-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    min-height: 400px; /* 增加最小高度 */
+    overflow: visible;
+}
+
+/* 面板头部 */
+.panel-header {
+    background: #f5f5f5;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.panel-header h3 {
+    font-size: 16px;
+    color: #333;
+    margin: 0;
+}
+
+.toggle-btn {
+    background: #2196f3;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.toggle-btn:hover {
+    background: #1976d2;
+    transform: translateY(-1px);
+}
+
+.refresh-btn {
+    background: #4caf50;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.refresh-btn:hover {
+    background: #45a049;
+    transform: translateY(-1px);
+}
+
+.control-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.close-btn {
+    background: #f44336;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.close-btn:hover {
+    background: #d32f2f;
+    transform: translateY(-1px);
+}
+
+/* 面板内容 */
+.panel-content {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* 简化的网页信息显示 */
+.page-info-mini {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 8px;
+    margin-bottom: 8px;
+}
+
+.page-title-mini {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.page-url-mini {
+    font-size: 11px;
+    color: #666;
+    word-break: break-all;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 原有完整版样式保持不变，用于悬浮窗 */
+.page-info {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.page-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.page-url {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 8px;
+    word-break: break-all;
+}
+
+.content-summary {
+    font-size: 14px;
+    color: #555;
+    line-height: 1.5;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+/* 分隔条 */
+.resize-handle {
+    width: 8px;
+    background: #e0e0e0;
+    cursor: col-resize;
+    position: relative;
+    transition: background-color 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.resize-handle:hover {
+    background: #667eea;
+}
+
+.resize-handle:active {
+    background: #5a6fd8;
+}
+
+.resize-indicator {
+    width: 2px;
+    height: 30px;
+    background: #999;
+    border-radius: 1px;
+    transition: background-color 0.3s ease;
+}
+
+.resize-handle:hover .resize-indicator {
+    background: white;
+}
+
+.resize-handle:active .resize-indicator {
+    background: white;
+}
+
+/* 模型选择 */
+.model-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.model-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.model-select {
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+}
+
+.model-select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+/* 输入区域 */
+.input-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.input-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.content-textarea {
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 14px;
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+}
+
+.content-textarea:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+/* 文件上传 */
+.file-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 2px dashed #e0e0e0;
+    border-radius: 6px;
+    background: #f9f9f9;
+}
+
+.file-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.file-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.file-name {
+    font-size: 12px;
+    color: #666;
+    flex: 1;
+}
+
+/* 操作按钮 */
+.action-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.generate-btn {
+    flex: 1;
+    background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+    color: white;
+    border: none;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.generate-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+.generate-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.clear-btn {
+    background: #f44336;
+    color: white;
+    border: none;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.clear-btn:hover {
+    background: #d32f2f;
+    transform: translateY(-1px);
+}
+
+/* 状态消息 */
+.status-message {
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    text-align: center;
+    display: none;
+}
+
+.status-message.success {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #4caf50;
+    display: block;
+}
+
+.status-message.error {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #f44336;
+    display: block;
+}
+
+.status-message.loading {
+    background: #e3f2fd;
+    color: #1976d2;
+    border: 1px solid #2196f3;
+    display: block;
+}
+
+/* 导出按钮 */
+.export-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.export-btn {
+    background: #2196f3;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.export-btn:hover:not(:disabled) {
+    background: #1976d2;
+    transform: translateY(-1px);
+}
+
+.export-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* 思维导图内容 */
+.mindmap-content {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    background: #fafafa;
+    min-height: 300px; /* 增加最小高度 */
+    max-height: 500px; /* 设置最大高度以启用滚动 */
+    position: relative;
+}
+
+.mindmap-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 1px dashed #ccc;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* 自定义滚动条样式 */
+.mindmap-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.mindmap-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.mindmap-content::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+    transition: background 0.3s ease;
+}
+
+.mindmap-content::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+.mindmap-content::-webkit-scrollbar-thumb:active {
+    background: #999;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 150px;
+    color: #999;
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 8px;
+}
+
+.empty-text {
+    font-size: 14px;
+}
+
+/* ========================================
+   插件弹窗版思维导图样式 - 完全重写版本
+   ======================================== */
+
+/* 思维导图容器 */
+.mindmap-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    background: #fafafa;
+    border-radius: 6px;
+    min-height: 200px;
+}
+
+/* 树节点容器 */
+.tree-node {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 40px;
+}
+
+/* 树节点内容行 */
+.tree-node-row {
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding-left: 16px;
+    min-height: 40px;
+}
+
+/* 子节点容器 */
+.tree-node-children {
+    display: flex;
+    flex-direction: column;
+    margin-left: 0;
+    padding-left: 16px;
+    gap: 0;
+    position: relative;
+}
+
+/* 连接线样式 - 改进版本 */
+/* 水平连接线：从父节点到子节点的水平线 */
+/* 连接线从圆点位置（-4px）开始，延伸到子节点 */
+.tree-node-row::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: 50%;
+    width: 20px;
+    height: 2px;
+    background: #667eea;
+    transform: translateY(-50%);
+    z-index: 1;
+    border-radius: 1px;
+    box-shadow: 0 0 2px rgba(102, 126, 234, 0.3);
+    display: block !important;
+}
+
+/* 垂直连接线：连接所有子节点的垂直线 */
+.tree-node-children::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: 0;
+    width: 2px;
+    height: 100%;
+    background: #667eea;
+    z-index: 1;
+    border-radius: 1px;
+    box-shadow: 0 0 2px rgba(102, 126, 234, 0.3);
+    display: block !important;
+}
+
+/* 最后一个子节点的连接线调整 - 只显示水平线 */
+.tree-node-children > .tree-node:last-child .tree-node-row::before {
+    width: 20px;
+}
+
+/* 非最后一个子节点的连接线 - 水平线延伸到垂直线上 */
+.tree-node-children > .tree-node:not(:last-child) .tree-node-row::before {
+    width: 20px;
+}
+
+/* 为有子节点的父节点添加垂直连接线起点 - 从节点中心向下延伸 */
+.tree-node:has(.tree-node-children) .tree-node-row::after {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: 50%;
+    width: 2px;
+    height: calc(50% + 20px);
+    background: #667eea;
+    z-index: 1;
+    border-radius: 1px;
+    box-shadow: 0 0 2px rgba(102, 126, 234, 0.3);
+    display: block !important;
+}
+
+/* 第一级节点不需要水平连接线 */
+.tree-node[data-level="1"] .tree-node-row::before {
+    display: none;
+}
+
+/* 第一级节点如果有子节点，需要显示垂直连接线 */
+.tree-node[data-level="1"]:has(.tree-node-children) .tree-node-children::before {
+    display: block !important;
+    left: -4px;
+}
+
+/* 第一级节点不需要向下的连接线 */
+.tree-node[data-level="1"]:has(.tree-node-children) .tree-node-row::after {
+    display: none;
+}
+
+/* 确保连接线在节点圆点下方 */
+.tree-node-row::before,
+.tree-node-row::after,
+.tree-node-children::before {
+    z-index: 0;
+}
+
+/* 节点圆点 - 重新设计 */
+.node-circle {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    position: absolute;
+    left: -4px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 3;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+/* 有子节点的圆点样式 */
+.node-circle.has-children {
+    width: 14px;
+    height: 14px;
+    left: -7px;
+    border-width: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.node-circle.has-children::after {
+    content: '';
+    width: 0;
+    height: 0;
+    border-left: 4px solid white;
+    border-top: 3px solid transparent;
+    border-bottom: 3px solid transparent;
+    transition: transform 0.3s ease;
+    margin-left: 2px;
+}
+
+.node-circle.has-children.collapsed::after {
+    transform: rotate(-90deg);
+}
+
+/* 折叠状态的节点 */
+.tree-node.collapsed .tree-node-children {
+    display: none;
+}
+
+/* 一级节点圆点 - 紫色 */
+.node-circle.level-1 {
+    background: #9c27b0;
+    width: 12px;
+    height: 12px;
+    left: -6px;
+    border-width: 2px;
+}
+
+/* 二级节点圆点 - 橙色 */
+.node-circle.level-2 {
+    background: #ff9800;
+    width: 10px;
+    height: 10px;
+    left: -5px;
+}
+
+/* 三级节点圆点 - 黄色 */
+.node-circle.level-3 {
+    background: #ffc107;
+}
+
+/* 四级节点圆点 - 青色 */
+.node-circle.level-4 {
+    background: #00bcd4;
+}
+
+/* 五级节点圆点 - 蓝色 */
+.node-circle.level-5 {
+    background: #2196f3;
+}
+
+/* 六级及之后节点圆点 - 灰色 */
+.node-circle.level-6,
+.node-circle.level-7,
+.node-circle.level-8,
+.node-circle.level-9,
+.node-circle.level-10 {
+    background: #9e9e9e;
+}
+
+/* 节点内容 - 完全重写为矩形样式 */
+.node-content {
+    /* 基础样式 */
+    padding: 8px 12px;
+    margin-left: 16px;
+    flex: 1;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* 强制矩形 - 无圆角 */
+    border-radius: 0px !important;
+    -webkit-border-radius: 0px !important;
+    -moz-border-radius: 0px !important;
+    -ms-border-radius: 0px !important;
+    -o-border-radius: 0px !important;
+    
+    /* 边框和轮廓 */
+    border: none !important;
+    outline: none !important;
+    
+    /* 阴影效果 */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    
+    /* 文字样式 */
+    font-size: 12px;
+    line-height: 1.3;
+    font-weight: 500;
+    
+    /* 布局 */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 36px;
+}
+
+/* 节点内容悬停效果 */
+.node-content:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    transform: translateY(-1px);
+}
+
+/* 节点内容点击效果 */
+.node-content:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* 各级别节点样式 - 使用纯色背景 */
+/* 一级节点 - 紫色 */
+.node-content.level-1 {
+    background: #e1bee7;
+    border-left: 3px solid #9c27b0;
+    font-weight: 600;
+    font-size: 13px;
+    min-height: 40px;
+}
+
+/* 二级节点 - 橙色 */
+.node-content.level-2 {
+    background: #ffe0b2;
+    border-left: 3px solid #ff9800;
+    margin-left: 12px;
+}
+
+/* 三级节点 - 黄色 */
+.node-content.level-3 {
+    background: #fff9c4;
+    border-left: 3px solid #ffc107;
+    margin-left: 24px;
+}
+
+/* 四级节点 - 青色 */
+.node-content.level-4 {
+    background: #b2ebf2;
+    border-left: 3px solid #00bcd4;
+    margin-left: 36px;
+}
+
+/* 五级节点 - 蓝色 */
+.node-content.level-5 {
+    background: #bbdefb;
+    border-left: 3px solid #2196f3;
+    margin-left: 48px;
+}
+
+/* 六级及之后节点 - 浅灰色 */
+.node-content.level-6,
+.node-content.level-7,
+.node-content.level-8,
+.node-content.level-9,
+.node-content.level-10 {
+    background: #eeeeee;
+    border-left: 3px solid #9e9e9e;
+    margin-left: 60px;
+}
+
+/* AI图标样式 */
+.ai-hint-icon {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+    z-index: 2;
+}
+
+.ai-hint-icon:hover {
+    opacity: 1;
+    transform: translateY(-50%) scale(1.2);
+}
+
+/* ========== AI生成节点的特殊样式 ========== */
+/* AI生成的节点内容 - 特殊背景和边框 */
+.node-content.ai-generated {
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%) !important;
+    border-left: 3px solid #4caf50 !important;
+    border-right: 2px solid rgba(76, 175, 80, 0.3);
+    position: relative;
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.15);
+}
+
+/* AI生成节点的圆点 - 绿色 */
+.node-circle.ai-generated {
+    background: linear-gradient(135deg, #4caf50, #2e7d32) !important;
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+}
+
+/* AI标识图标 */
+.ai-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-right: 6px;
+    font-size: 12px;
+    background: linear-gradient(135deg, #4caf50, #2e7d32);
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* AI节点的悬停效果 */
+.node-content.ai-generated:hover {
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.25);
+    transform: translateY(-2px);
+}
+
+/* AI节点的文字样式 */
+.node-content.ai-generated .node-text {
+    color: #1b5e20;
+    font-weight: 500;
+}
+
+/* AI节点右上角的小标签 */
+.node-content.ai-generated::after {
+    content: 'AI';
+    position: absolute;
+    top: -6px;
+    right: 30px;
+    font-size: 9px;
+    font-weight: 700;
+    color: white;
+    background: linear-gradient(135deg, #4caf50, #2e7d32);
+    padding: 2px 6px;
+    border-radius: 8px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 动画效果 - 重新设计 */
+.tree-node {
+    opacity: 0;
+    animation: slideInFromLeft 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.tree-node:nth-child(1) { animation-delay: 0.1s; }
+.tree-node:nth-child(2) { animation-delay: 0.15s; }
+.tree-node:nth-child(3) { animation-delay: 0.2s; }
+.tree-node:nth-child(4) { animation-delay: 0.25s; }
+.tree-node:nth-child(5) { animation-delay: 0.3s; }
+
+@keyframes slideInFromLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* 节点内容动画 */
+.node-content {
+    animation: fadeInScale 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 页脚 */
+.popup-footer {
+    background: #f5f5f5;
+    padding: 8px 16px;
+    text-align: center;
+    border-top: 1px solid #e0e0e0;
+}
+
+.footer-text {
+    font-size: 12px;
+    color: #666;
+}
+
+/* 悬浮原文按钮 */
+.floating-btn {
+    background: linear-gradient(135deg, #ff5722, #f44336);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.floating-btn:hover {
+    background: linear-gradient(135deg, #e64a19, #d32f2f);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 87, 34, 0.4);
+}
+
+/* 悬浮原文窗口 */
+.source-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    backdrop-filter: blur(4px);
+}
+
+.source-modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 85%;
+    max-width: 700px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    animation: slideUpFade 0.3s ease-out;
+}
+
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateY(40px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.source-modal-header {
+    background: linear-gradient(135deg, #ff5722, #f44336);
+    color: white;
+    padding: 16px 20px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.source-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.source-icon {
+    font-size: 18px;
+}
+
+.source-modal-body {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    background: #fafafa;
+}
+
+.source-content {
+    background: white;
+    padding: 16px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #333;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.source-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.source-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.source-content::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.source-content::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* AI问答弹窗 */
+.ai-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 20px;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.ai-modal > .modal-content {
+    pointer-events: auto;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    min-width: 500px;
+    height: 600px;
+    min-height: 400px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    overflow: hidden;
+    position: relative;
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 16px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.current-node {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+}
+
+.chat-messages {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    min-height: 300px;
+    background: #f9f9f9;
+}
+
+.chat-message {
+    margin-bottom: 12px;
+    display: flex;
+    gap: 8px;
+}
+
+.chat-message.user {
+    justify-content: flex-end;
+}
+
+.message-content {
+    padding: 8px 12px;
+    border-radius: 12px;
+    max-width: 70%;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.message-content.user {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.message-content.ai {
+    background: white;
+    color: #333;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.suggested-questions {
+    padding: 12px 16px;
+    background: #f0f4ff;
+    border-top: 1px solid #e0e0e0;
+}
+
+.questions-label {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.questions-list {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.question-btn {
+    background: white;
+    border: 1px solid #667eea;
+    color: #667eea;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.question-btn:hover {
+    background: #667eea;
+    color: white;
+}
+
+.chat-input {
+    padding: 16px;
+    background: white;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
+    gap: 8px;
+}
+
+.chat-input input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 20px;
+    font-size: 14px;
+    outline: none;
+}
+
+.chat-input input:focus {
+    border-color: #667eea;
+}
+
+.chat-input button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.chat-input button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* 加载动画 */
+.loading-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+body.resizing {
+    cursor: col-resize !important;
+    user-select: none !important;
+}
+
+body.resizing * {
+    cursor: col-resize !important;
+}
+
+@media (max-width: 900px) {
+    body {
+        width: 100vw;
+        min-width: 600px;
+    }
+    
+    .popup-container {
+        border-radius: 0;
+    }
+    
+    .left-panel,
+    .right-panel {
+        min-width: 250px;
+    }
+}
+
+@media (max-width: 600px) {
+    body {
+        width: 100vw;
+        min-width: 500px;
+    }
+    
+    .left-panel,
+    .right-panel {
+        min-width: 200px;
+    }
+}
+
+/* 加载面板样式 */
+.loading-panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 400px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.loading-content {
+    text-align: center;
+    padding: 40px;
+}
+
+.loading-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+    animation: pulse 2s infinite;
+}
+
+.loading-text {
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.loading-subtitle {
+    font-size: 14px;
+    color: #666;
+    line-height: 1.5;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.7;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}

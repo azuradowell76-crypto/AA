@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>思维导图插件调试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .debug-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .debug-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .status.success { background-color: #d4edda; color: #155724; }
+        .status.error { background-color: #f8d7da; color: #721c24; }
+        .status.info { background-color: #d1ecf1; color: #0c5460; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧠 思维导图AI助手 - 调试页面</h1>
+    
+    <div class="debug-section">
+        <h3>📋 页面信息</h3>
+        <div id="pageInfo">
+            <p><strong>标题:</strong> <span id="pageTitle">加载中...</span></p>
+            <p><strong>URL:</strong> <span id="pageUrl">加载中...</span></p>
+            <p><strong>内容长度:</strong> <span id="contentLength">0</span> 字符</p>
+        </div>
+    </div>
+
+    <div class="debug-section">
+        <h3>🔧 插件状态检测</h3>
+        <div id="extensionStatus" class="status info">检测中...</div>
+        <button onclick="checkExtension()">重新检测插件</button>
+        <button onclick="testContentScript()">测试内容脚本</button>
+        <button onclick="testMessageCommunication()">测试消息通信</button>
+    </div>
+
+    <div class="debug-section">
+        <h3>📝 内容提取测试</h3>
+        <button onclick="extractContent()">提取页面内容</button>
+        <button onclick="showDiagnostic()">显示诊断信息</button>
+        <div id="contentPreview" class="log" style="display: none;"></div>
+    </div>
+
+    <div class="debug-section">
+        <h3>📊 调试日志</h3>
+        <button onclick="clearLog()">清空日志</button>
+        <div id="debugLog" class="log">等待操作...</div>
+    </div>
+
+    <script>
+        let logContainer = document.getElementById('debugLog');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}\n`;
+            logContainer.textContent += logEntry;
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(message);
+        }
+
+        function clearLog() {
+            logContainer.textContent = '';
+        }
+
+        function updatePageInfo() {
+            document.getElementById('pageTitle').textContent = document.title;
+            document.getElementById('pageUrl').textContent = window.location.href;
+            document.getElementById('contentLength').textContent = document.body.textContent.length;
+        }
+
+        function checkExtension() {
+            log('🔍 检测插件状态...');
+            
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                log('✅ Chrome扩展API可用');
+                
+                if (window.mindmapAI) {
+                    log('✅ 内容脚本已加载');
+                    document.getElementById('extensionStatus').textContent = '插件运行正常';
+                    document.getElementById('extensionStatus').className = 'status success';
+                } else {
+                    log('⚠️ 内容脚本未加载');
+                    document.getElementById('extensionStatus').textContent = '内容脚本未加载';
+                    document.getElementById('extensionStatus').className = 'status error';
+                }
+            } else {
+                log('❌ Chrome扩展API不可用');
+                document.getElementById('extensionStatus').textContent = '扩展API不可用';
+                document.getElementById('extensionStatus').className = 'status error';
+            }
+        }
+
+        function testContentScript() {
+            log('🧪 测试内容脚本...');
+            
+            if (window.mindmapAI) {
+                log('✅ 内容脚本对象存在');
+                log(`📊 页面内容长度: ${window.mindmapAI.pageContent ? window.mindmapAI.pageContent.length : 0}`);
+                log(`📋 页面标题: ${window.mindmapAI.pageTitle || '未设置'}`);
+                log(`🌐 页面URL: ${window.mindmapAI.pageUrl || '未设置'}`);
+            } else {
+                log('❌ 内容脚本对象不存在');
+            }
+        }
+
+        function testMessageCommunication() {
+            log('📡 测试消息通信...');
+            
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                chrome.runtime.sendMessage({ action: 'test' }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        log(`❌ 消息通信失败: ${chrome.runtime.lastError.message}`);
+                    } else {
+                        log('✅ 消息通信正常');
+                    }
+                });
+            } else {
+                log('❌ Chrome扩展API不可用');
+            }
+        }
+
+        function extractContent() {
+            log('📝 开始提取页面内容...');
+            
+            if (window.mindmapAI) {
+                try {
+                    const content = window.mindmapAI.extractPageContent();
+                    log(`✅ 内容提取成功，长度: ${content.length}`);
+                    
+                    const preview = document.getElementById('contentPreview');
+                    preview.textContent = content.substring(0, 1000) + (content.length > 1000 ? '...' : '');
+                    preview.style.display = 'block';
+                } catch (error) {
+                    log(`❌ 内容提取失败: ${error.message}`);
+                }
+            } else {
+                log('❌ 内容脚本未加载');
+            }
+        }
+
+        function showDiagnostic() {
+            log('🔍 获取诊断信息...');
+            
+            if (window.mindmapAI) {
+                try {
+                    const diagnostic = window.mindmapAI.getDiagnosticInfo();
+                    log('📊 诊断信息:');
+                    log(`- 状态: ${diagnostic.status}`);
+                    log(`- 内容长度: ${diagnostic.contentLength}`);
+                    log(`- 页面标题: ${diagnostic.pageTitle}`);
+                    log(`- 中文内容比例: ${diagnostic.chinesePercentage}%`);
+                    log(`- 问题: ${diagnostic.issues.join(', ') || '无'}`);
+                } catch (error) {
+                    log(`❌ 获取诊断信息失败: ${error.message}`);
+                }
+            } else {
+                log('❌ 内容脚本未加载');
+            }
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            log('🚀 调试页面已加载');
+            updatePageInfo();
+            checkExtension();
+        });
+
+        // 监听来自扩展的消息
+        if (typeof chrome !== 'undefined' && chrome.runtime) {
+            chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+                log(`📨 收到消息: ${JSON.stringify(request)}`);
+                return true;
+            });
+        }
+    </script>
+</body>
+</html>

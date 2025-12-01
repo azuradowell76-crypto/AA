@@ -69,28 +69,36 @@ class LLMService {
   // 生成思维导图结构
   async generateMindmapStructure(text, provider = 'deepseek', model = 'deepseek-chat') {
     const prompt = this.buildMindmapPrompt(text);
+    
+    // 将 'default' 映射为 'deepseek'
+    const actualProvider = (provider === 'default' || !provider) ? 'deepseek' : provider;
+    const actualModel = (model === 'default' || !model) ? 'deepseek-chat' : model;
 
-    switch (provider) {
+    switch (actualProvider) {
       // case 'ollama':
-      //   return await this.generateWithOllama(prompt, model);
+      //   return await this.generateWithOllama(prompt, actualModel);
       case 'deepseek':
-        return await this.generateWithDeepSeek(prompt, model);
+        return await this.generateWithDeepSeek(prompt, actualModel);
       default:
-        throw new Error(`不支持的提供商: ${provider}`);
+        throw new Error(`不支持的提供商: ${actualProvider}`);
     }
   }
 
   // 生成AI问答回复
-  async generateAIResponse(question, nodeText, nodeLevel, provider = 'deepseek', model = 'deepseek-chat', conversationHistory = []) {
-    const prompt = this.buildChatPrompt(question, nodeText, nodeLevel, conversationHistory);
+  async generateAIResponse(question, nodeText, nodeLevel, provider = 'deepseek', model = 'deepseek-chat', conversationHistory = [], pageContent = '') {
+    const prompt = this.buildChatPrompt(question, nodeText, nodeLevel, conversationHistory, pageContent);
+    
+    // 将 'default' 映射为 'deepseek'
+    const actualProvider = (provider === 'default' || !provider) ? 'deepseek' : provider;
+    const actualModel = (model === 'default' || !model) ? 'deepseek-chat' : model;
 
-    switch (provider) {
+    switch (actualProvider) {
       // case 'ollama':
-      //   return await this.generateWithOllama(prompt, model);
+      //   return await this.generateWithOllama(prompt, actualModel);
       case 'deepseek':
-        return await this.generateWithDeepSeek(prompt, model, true);
+        return await this.generateWithDeepSeek(prompt, actualModel, true);
       default:
-        throw new Error(`不支持的提供商: ${provider}`);
+        throw new Error(`不支持的提供商: ${actualProvider}`);
     }
   }
 
@@ -247,7 +255,7 @@ ${text}
   }
 
   // 构建AI问答的 prompt
-  buildChatPrompt(question, nodeText, nodeLevel, conversationHistory = []) {
+  buildChatPrompt(question, nodeText, nodeLevel, conversationHistory = [], pageContent = '') {
     let systemContext = `你是一个专业的AI助手，正在为用户解答关于"${nodeText}"的问题。`;
     
     // 根据节点层级提供不同的上下文
@@ -266,11 +274,31 @@ ${text}
 
 用户的问题是："${question}"
 
-请以专业、友好的方式回答，确保信息准确、有用且易于理解。回答应该：
+`;
+
+    // 如果有网页内容，添加到prompt中
+    if (pageContent && pageContent.trim().length > 0) {
+      // 限制网页内容长度，避免prompt过长
+      const maxContentLength = 8000; // 最多8000字符
+      const truncatedContent = pageContent.length > maxContentLength 
+        ? pageContent.substring(0, maxContentLength) + '...（内容已截断）'
+        : pageContent;
+      
+      fullPrompt += `以下是当前网页的内容，请结合这些内容来回答用户的问题。如果网页内容与问题相关，请优先参考网页内容中的信息；如果网页内容与问题不直接相关，可以结合你的知识来回答：
+
+=== 网页内容 ===
+${truncatedContent}
+=== 网页内容结束 ===
+
+`;
+    }
+
+    fullPrompt += `请以专业、友好的方式回答，确保信息准确、有用且易于理解。回答应该：
 1. 直接针对用户的问题
-2. 提供具体的信息和例子
-3. 如果相关，可以包含实际应用场景
-4. 保持简洁但内容丰富
+2. 如果网页内容中有相关信息，优先使用网页内容中的信息
+3. 提供具体的信息和例子
+4. 如果相关，可以包含实际应用场景
+5. 保持简洁但内容丰富
 
 `;
 
@@ -280,7 +308,7 @@ ${text}
       conversationHistory.slice(-3).forEach((msg, index) => {
         fullPrompt += `${msg.type === 'user' ? '用户' : 'AI'}：${msg.content}\n`;
       });
-      fullPrompt += `\n请基于以上对话历史回答新问题：\n`;
+      fullPrompt += `\n请基于以上对话历史和网页内容回答新问题：\n`;
     }
 
     return fullPrompt;
@@ -384,6 +412,58 @@ ${levelSymbol} 历史意义：奠定AI研究基础，启发后续数十年发展
     });
     
     return nodes;
+  }
+
+  // 将子节点插入到markdown中的指定位置
+  insertChildNodesToMarkdown(currentMarkdown, parentNodeText, parentLevel, childNodes) {
+    const lines = currentMarkdown.split('\n');
+    const nodes = [];
+    
+    // 解析当前markdown中的所有节点
+    lines.forEach((line, index) => {
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith('#')) {
+        const level = (trimmedLine.match(/^#+/) || [''])[0].length;
+        const text = trimmedLine.replace(/^#+\s*/, '').trim();
+        if (text) {
+          nodes.push({ level, text, index, line: trimmedLine });
+        }
+      }
+    });
+    
+    // 找到父节点的位置
+    let parentNodeIndex = -1;
+    for (let i = 0; i < nodes.length; i++) {
+      if (nodes[i].text === parentNodeText && nodes[i].level === parentLevel) {
+        parentNodeIndex = i;
+        break;
+      }
+    }
+    
+    if (parentNodeIndex === -1) {
+      throw new Error(`找不到父节点 "${parentNodeText}" (层级: ${parentLevel})`);
+    }
+    
+    // 找到插入位置（父节点的下一行，或者最后一个子节点之后）
+    const parentNode = nodes[parentNodeIndex];
+    let insertIndex = parentNode.index + 1;
+    
+    // 找到当前节点的最后一个子节点位置
+    for (let i = parentNodeIndex + 1; i < nodes.length; i++) {
+      if (nodes[i].level > parentNode.level) {
+        insertIndex = nodes[i].index + 1;
+      } else {
+        break;
+      }
+    }
+    
+    // 构建要插入的子节点markdown
+    const childNodesMarkdown = childNodes.map(node => node.markdown).join('\n');
+    
+    // 插入子节点
+    lines.splice(insertIndex, 0, childNodesMarkdown);
+    
+    return lines.join('\n');
   }
 
   // 使用 Ollama 生成
@@ -504,7 +584,10 @@ ${levelSymbol} 历史意义：奠定AI研究基础，启发后续数十年发展
   // 健康检查
   async isHealthy(provider = 'deepseek') {
     try {
-      switch (provider) {
+      // 将 'default' 映射为 'deepseek'
+      const actualProvider = (provider === 'default' || !provider) ? 'deepseek' : provider;
+      
+      switch (actualProvider) {
         // case 'ollama':
         //   const ollamaResponse = await axios.get(`${this.providers.ollama.baseUrl}/api/tags`, {
         //     timeout: 5000
@@ -515,6 +598,7 @@ ${levelSymbol} 历史意义：奠定AI研究基础，启发后续数十年发展
           return !!this.providers.deepseek.apiKey;
         
         default:
+          console.warn(`未知的提供商: ${provider}, 默认返回 false`);
           return false;
       }
     } catch (error) {
@@ -648,6 +732,271 @@ ${levelSymbol} 历史意义：奠定AI研究基础，启发后续数十年发展
       
       throw new Error(`PNG生成失败: ${error.message}`);
     }
+  }
+
+  // 新增：导出思维导图为XMind
+  async exportToXMind(markdown, title = '思维导图') {
+    try {
+      console.log('📦 开始生成XMind文件...');
+      
+      // 使用jszip（通过mammoth的依赖）
+      const JSZip = require('jszip');
+      const zip = new JSZip();
+      
+      // 解析Markdown为树结构
+      const tree = this.parseMarkdownToTree(markdown);
+      
+      // 生成XMind content.xml
+      const contentXml = this.generateXMindContent(tree, title);
+      
+      // 生成XMind meta.xml
+      const metaXml = this.generateXMindMeta(title);
+      
+      // 将文件添加到ZIP
+      zip.file('content.xml', contentXml);
+      zip.file('meta.xml', metaXml);
+      zip.file('META-INF/manifest.xml', this.generateXMindManifest());
+      
+      // 生成ZIP文件
+      const zipBuffer = await zip.generateAsync({
+        type: 'nodebuffer',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 9 }
+      });
+      
+      console.log('✅ XMind文件生成成功');
+      return zipBuffer;
+      
+    } catch (error) {
+      console.error('❌ XMind生成失败:', error);
+      throw error;
+    }
+  }
+  
+  // 解析Markdown为树结构
+  parseMarkdownToTree(markdown) {
+    const lines = markdown.split('\n').filter(line => line.trim());
+    const nodes = [];
+    
+    lines.forEach((line, index) => {
+      const level = (line.match(/^#+/) || [''])[0].length;
+      const text = line.replace(/^#+\s*/, '').trim();
+      if (text) {
+        nodes.push({ level, text, index });
+      }
+    });
+    
+    // 构建树结构
+    const buildTree = (nodes, startIndex = 0, parentLevel = 0) => {
+      const result = [];
+      let i = startIndex;
+      
+      while (i < nodes.length) {
+        const node = nodes[i];
+        if (node.level <= parentLevel) {
+          break;
+        }
+        if (node.level === parentLevel + 1) {
+          const treeNode = {
+            id: `node-${i}`,
+            title: node.text,
+            children: buildTree(nodes, i + 1, node.level)
+          };
+          result.push(treeNode);
+          i++;
+        } else {
+          i++;
+        }
+      }
+      return result;
+    };
+    
+    return buildTree(nodes);
+  }
+  
+  // 生成XMind content.xml
+  generateXMindContent(tree, title) {
+    const rootId = 'root-1';
+    
+    // 生成主题XML
+    const generateTopicXml = (node, index = 0) => {
+      const topicId = node.id || `topic-${Date.now()}-${index}`;
+      let childrenXml = '';
+      
+      if (node.children && node.children.length > 0) {
+        childrenXml = '<children><topics type="attached">';
+        node.children.forEach((child, idx) => {
+          childrenXml += generateTopicXml(child, idx);
+        });
+        childrenXml += '</topics></children>';
+      }
+      
+      return `<topic id="${topicId}"><title>${this.escapeXml(node.title)}</title>${childrenXml}</topic>`;
+    };
+    
+    // 如果tree有节点，使用第一个节点作为根节点（与思维导图的最高父节点相同）
+    if (tree.length > 0) {
+      const rootTopic = tree[0];
+      const rootTitle = this.escapeXml(rootTopic.title);
+      let rootChildrenXml = '';
+      
+      // 如果根节点有子节点，生成子节点XML
+      if (rootTopic.children && rootTopic.children.length > 0) {
+        rootChildrenXml = '<children><topics type="attached">';
+        rootTopic.children.forEach((child, idx) => {
+          rootChildrenXml += generateTopicXml(child, idx);
+        });
+        rootChildrenXml += '</topics></children>';
+      }
+      
+      // 如果还有多个顶级节点，也作为根节点的子节点
+      if (tree.length > 1) {
+        if (!rootChildrenXml) {
+          rootChildrenXml = '<children><topics type="attached">';
+        }
+        for (let i = 1; i < tree.length; i++) {
+          rootChildrenXml += generateTopicXml(tree[i], i);
+        }
+        if (rootChildrenXml) {
+          rootChildrenXml += '</topics></children>';
+        }
+      }
+      
+      return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<xmap-content xmlns="urn:xmind:xmap:xmlns:content:2.0" xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.0">
+  <sheet id="sheet-1">
+    <topic id="${rootId}">
+      <title>${rootTitle}</title>
+      ${rootChildrenXml}
+    </topic>
+  </sheet>
+</xmap-content>`;
+    } else {
+      // 如果tree为空，使用title作为根节点
+      return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<xmap-content xmlns="urn:xmind:xmap:xmlns:content:2.0" xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.0">
+  <sheet id="sheet-1">
+    <topic id="${rootId}">
+      <title>${this.escapeXml(title)}</title>
+    </topic>
+  </sheet>
+</xmap-content>`;
+    }
+  }
+  
+  // 生成XMind meta.xml
+  generateXMindMeta(title) {
+    return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<meta xmlns="urn:xmind:xmap:xmlns:meta:2.0" version="2.0">
+  <Author>
+    <Name>AI思维导图助手</Name>
+  </Author>
+</meta>`;
+  }
+  
+  // 生成XMind manifest.xml
+  generateXMindManifest() {
+    return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<manifest xmlns="urn:xmind:xmap:xmlns:manifest:1.0">
+  <file-entry full-path="content.xml" media-type="text/xml"/>
+  <file-entry full-path="meta.xml" media-type="text/xml"/>
+  <file-entry full-path="META-INF/" media-type=""/>
+  <file-entry full-path="META-INF/manifest.xml" media-type="text/xml"/>
+</manifest>`;
+  }
+  
+  // 使用AI修改思维导图
+  async modifyMindmapWithAI(currentMarkdown, question, pageTitle, provider = 'deepseek', model = 'deepseek-chat') {
+    const prompt = `你是一个思维导图编辑助手。用户有一个现有的思维导图，想根据他们的要求进行修改。
+
+当前思维导图内容（Markdown格式）：
+\`\`\`
+${currentMarkdown}
+\`\`\`
+
+页面标题：${pageTitle || '未知'}
+
+用户的要求：${question}
+
+请根据用户的要求修改思维导图，并返回以下JSON格式的响应：
+{
+  "changes": [
+    {"type": "add", "location": "在哪个节点下添加", "content": "添加的内容"},
+    {"type": "modify", "original": "原内容", "new": "新内容"},
+    {"type": "delete", "content": "删除的内容"}
+  ],
+  "newMarkdown": "完整的新思维导图Markdown内容",
+  "summary": "修改摘要说明"
+}
+
+注意：
+1. newMarkdown必须是完整的思维导图Markdown，使用#标记层级
+2. 保持原有的层级结构，除非用户明确要求修改
+3. changes数组描述所有的修改操作
+4. 只返回JSON，不要有其他文字`;
+
+    const actualProvider = (provider === 'default' || !provider) ? 'deepseek' : provider;
+    const actualModel = (model === 'default' || !model) ? 'deepseek-chat' : model;
+
+    const response = await this.generateWithDeepSeek(prompt, actualModel, false);
+    
+    try {
+      // 尝试解析JSON响应
+      let jsonStr = response;
+      // 移除可能的markdown代码块标记
+      if (jsonStr.includes('```json')) {
+        jsonStr = jsonStr.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      } else if (jsonStr.includes('```')) {
+        jsonStr = jsonStr.replace(/```\n?/g, '');
+      }
+      
+      const result = JSON.parse(jsonStr.trim());
+      return {
+        changes: result.changes || [],
+        newMarkdown: result.newMarkdown || currentMarkdown,
+        summary: result.summary || '已完成修改'
+      };
+    } catch (parseError) {
+      console.error('解析AI响应失败:', parseError);
+      // 如果解析失败，尝试直接使用响应作为新的markdown
+      return {
+        changes: [{ type: 'modify', original: '整体', new: '已根据要求修改' }],
+        newMarkdown: response.includes('#') ? response : currentMarkdown,
+        summary: '已尝试根据您的要求进行修改'
+      };
+    }
+  }
+
+  // 回答关于思维导图的问题
+  async answerAboutMindmap(currentMarkdown, question, pageTitle, provider = 'deepseek', model = 'deepseek-chat') {
+    const prompt = `你是一个思维导图分析助手。用户有一个思维导图，想问一些关于它的问题。
+
+当前思维导图内容（Markdown格式）：
+\`\`\`
+${currentMarkdown}
+\`\`\`
+
+页面标题：${pageTitle || '未知'}
+
+用户的问题：${question}
+
+请根据思维导图的内容回答用户的问题。回答要清晰、有条理。`;
+
+    const actualProvider = (provider === 'default' || !provider) ? 'deepseek' : provider;
+    const actualModel = (model === 'default' || !model) ? 'deepseek-chat' : model;
+
+    return await this.generateWithDeepSeek(prompt, actualModel, false);
+  }
+
+  // XML转义
+  escapeXml(text) {
+    if (!text) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
   }
 
   // 将Markdown转换为HTML

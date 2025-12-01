@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>提供商测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .test-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .model-selection {
+            margin: 20px 0;
+        }
+        .model-label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .model-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>AI提供商测试</h1>
+        
+        <div class="model-selection">
+            <label class="model-label">AI模型</label>
+            <select id="modelSelect" class="model-select">
+                <option value="loading">正在加载...</option>
+            </select>
+        </div>
+        
+        <div id="statusMessage" class="status" style="display: none;"></div>
+        
+        <button id="testBtn">测试API连接</button>
+    </div>
+
+    <script>
+        const apiBaseUrl = 'http://localhost:3001/api/mindmap';
+        let selectedProvider = 'deepseek';
+        let selectedModel = 'deepseek-chat';
+
+        async function loadProviders() {
+            try {
+                console.log('正在加载AI提供商...');
+                const response = await fetch(`${apiBaseUrl}/providers`);
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    console.log('获取到的提供商:', data.data);
+                    populateModelSelect(data.data);
+                    showStatus('提供商加载成功！', 'success');
+                } else {
+                    console.error('获取提供商失败:', data);
+                    showStatus('获取AI模型失败', 'error');
+                }
+            } catch (error) {
+                console.error('加载提供商时出错:', error);
+                showStatus('连接AI服务失败', 'error');
+            }
+        }
+
+        function populateModelSelect(providers) {
+            const modelSelect = document.getElementById('modelSelect');
+            
+            // 清空现有选项
+            modelSelect.innerHTML = '';
+            
+            // 为每个提供商添加选项
+            providers.forEach(provider => {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = provider.name === 'deepseek' ? 'DeepSeek' : 
+                               provider.name === 'claude' ? 'Claude' : provider.name;
+                
+                provider.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = `${provider.name}-${model}`;
+                    option.textContent = model;
+                    optgroup.appendChild(option);
+                });
+                
+                modelSelect.appendChild(optgroup);
+            });
+            
+            // 设置默认选择
+            if (providers.length > 0) {
+                const firstProvider = providers[0];
+                const firstModel = firstProvider.models[0];
+                const defaultValue = `${firstProvider.name}-${firstModel}`;
+                modelSelect.value = defaultValue;
+                
+                // 更新当前选择的提供商和模型
+                selectedProvider = firstProvider.name;
+                selectedModel = firstModel;
+            }
+            
+            console.log('模型选择器已更新');
+        }
+
+        function onModelChange(selectedValue) {
+            // 解析选择的模型值 (格式: provider-model)
+            const [provider, model] = selectedValue.split('-');
+            
+            if (provider && model) {
+                selectedProvider = provider;
+                selectedModel = model;
+                
+                console.log('模型已更改:', { provider, model });
+                showStatus(`已选择: ${provider} - ${model}`, 'success');
+            }
+        }
+
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            statusEl.style.display = 'block';
+        }
+
+        // 事件监听器
+        document.getElementById('modelSelect').addEventListener('change', (e) => {
+            onModelChange(e.target.value);
+        });
+
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            try {
+                showStatus('正在测试API连接...', 'info');
+                
+                const response = await fetch(`${apiBaseUrl}/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: '这是一个测试文本，用于验证API连接是否正常。',
+                        title: 'API连接测试',
+                        provider: selectedProvider,
+                        model: selectedModel
+                    })
+                });
+                
+                console.log('API响应状态:', response.status);
+                
+                if (response.ok) {
+                    showStatus('API连接测试成功！', 'success');
+                } else {
+                    const errorData = await response.json();
+                    showStatus(`API测试失败: ${errorData.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('API测试出错:', error);
+                showStatus(`API测试出错: ${error.message}`, 'error');
+            }
+        });
+
+        // 页面加载时获取提供商
+        loadProviders();
+    </script>
+</body>
+</html>
+
